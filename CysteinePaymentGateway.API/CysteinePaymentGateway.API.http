@@ -1,0 +1,6 @@
+@CysteinePaymentGateway.API_HostAddress = http://localhost:5277
+
+GET {{CysteinePaymentGateway.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
