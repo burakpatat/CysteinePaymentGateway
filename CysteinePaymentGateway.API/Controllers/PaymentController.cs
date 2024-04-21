@@ -1,8 +1,8 @@
-﻿using CysteinePaymentGateway.VPOS;
+﻿using CysteinePaymentGateway.API.Hubs;
 using CysteinePaymentGateway.VPOS.Interfaces;
 using CysteinePaymentGateway.VPOS.Models;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 
 namespace CysteinePaymentGateway.API.Controllers
 {
@@ -10,14 +10,16 @@ namespace CysteinePaymentGateway.API.Controllers
     [ApiController]
     public class PaymentController : ControllerBase
     {
-        public ICysteineVirtualPOSService _cysteineVirtualPOSService;
+        private ICysteineVirtualPOSService _cysteineVirtualPOSService;
+        private readonly IHubContext<PaymentHub> _hubContext;
 
-        public PaymentController(ICysteineVirtualPOSService cysteineVirtualPOSService)
+        public PaymentController(ICysteineVirtualPOSService cysteineVirtualPOSService, IHubContext<PaymentHub> hubContext)
         {
             _cysteineVirtualPOSService = cysteineVirtualPOSService;
+            _hubContext = hubContext;
         }
 
-        [HttpPost]
+        [HttpGet]
         public async Task<IActionResult> Payment()
         {
             VirtualPOSAuth iyzico = new VirtualPOSAuth
@@ -32,7 +34,7 @@ namespace CysteinePaymentGateway.API.Controllers
             CustomerInfo customerInfo = new CustomerInfo
             {
                 taxNumber = "1111111111",
-                emailAddress = "test@test.com",
+                emailAddress = "burak@poisonsoftware.com",
                 name = "burak",
                 surname = "patat",
                 phoneNumber = "1111111111",
@@ -50,8 +52,8 @@ namespace CysteinePaymentGateway.API.Controllers
                 shippingInfo = customerInfo,
                 saleInfo = new SaleInfo
                 {
-                    cardNameSurname = "burak test",
-                    cardNumber = "5890040000000016",
+                    cardNameSurname = "burak patat",
+                    cardNumber = "4766620000000001",
                     cardExpiryDateMonth = 12,
                     cardExpiryDateYear = 2030,
                     amount = (decimal)100.50,
@@ -71,7 +73,7 @@ namespace CysteinePaymentGateway.API.Controllers
 
             var resp = _cysteineVirtualPOSService.Sale(saleRequest, iyzico);
 
-            return Ok(resp.message);
+            return Ok(new { Message = resp.message, OrderNumber = resp.orderNumber });
         }
 
         [HttpPost("VirtualPOS3DResponse")]
@@ -93,7 +95,24 @@ namespace CysteinePaymentGateway.API.Controllers
                 responseArray = form
             }, iyzico);
 
-            return Ok(response.message);
+            CallbackData callbackData = new(
+                message: response.message,
+                orderNumber: response.orderNumber,
+                statu: (int)response.statu,
+                transactionId: response.transactionId 
+                );
+
+            await _hubContext.Clients.Client(PaymentHub.TransactionConnections[callbackData.orderNumber]).SendAsync("3dReceive", callbackData);
+
+            return Ok();
         }
     }
+    public sealed record CallbackData
+    (
+        string message,
+        string orderNumber,
+        int statu,
+        string transactionId
+    );
+    
 }
