@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
+    <ProjectReference Include="..\CysteinePaymentGateway.VPOS\CysteinePaymentGateway.VPOS.csproj" />
   </ItemGroup>
 
 </Project>
